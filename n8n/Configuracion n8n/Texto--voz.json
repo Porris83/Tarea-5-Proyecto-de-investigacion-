@@ -1,0 +1,109 @@
+{
+  "name": "Texto--voz",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voz",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "aa9eb1aa-6f87-47aa-aa0b-ec90e4558498",
+      "name": "Webhook",
+      "webhookId": "2b7125bf-afba-493e-9c4a-f493fc2940ce"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        512,
+        0
+      ],
+      "id": "4c3735d9-6bd0-4339-bc66-05b2f87a34e0",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{ $json.body.texto }}' | /home/ariel/piper-tts/venv310/bin/piper --model /home/ariel/piper-tts/es_AR-daniela-high.onnx --length-scale 1.3 --output-file /home/ariel/piper-tts/output.wav"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        32,
+        0
+      ],
+      "id": "c1a7d975-ee46-42f4-8c36-78f26a301702",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/ariel/piper-tts/output.wav",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "id": "3039529a-7885-4d2e-9039-09cf76031988",
+      "name": "Read/Write Files from Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ea97aa65-dfdd-48c2-a2cb-260afc7c926c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "71262f9f2070dbf3c0f764bef7d6866db477a80e9a5114826d073eabbe6828a3"
+  },
+  "id": "ebW4XlMdKcFJfeZw",
+  "tags": []
+}
