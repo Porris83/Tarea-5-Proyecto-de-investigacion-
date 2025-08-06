@@ -1,0 +1,206 @@
+{
+  "name": "Consulta Clínica con Voz - Unificado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "consulta_audio",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "978f6f93-34ab-46e6-9e5e-13a03571bb6c",
+      "name": "Webhook",
+      "webhookId": "ab0cf4b2-e449-4b96-85a5-c1e66306d148"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qllama/multilingual-e5-large"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.body.pregunta }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d89a5228-649b-4ac0-a738-c01916fab3a4",
+      "name": "Ollama Embeddings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:6333/collections/escenarios_clinicos/points/search",
+        "sendBody": true,
+        "contentType": "=json",
+        "specifyBody": "json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={\n  \"vector\": [{{ $json.embedding }}],\n  \"top\": 1,\n  \"with_payload\": true\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "98f4be47-4f72-4082-9c07-0439a29212c7",
+      "name": "Buscar qdrant"
+    },
+    {
+      "parameters": {
+        "jsCode": "const puntos = $json.result || [];\nreturn [\n  {\n    json: {\n      respuestas: puntos.map(p => ({\n        texto: p.payload?.texto || \"[sin texto]\",\n        especialidad: p.payload?.especialidad || \"[sin especialidad]\"\n      }))\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "fcd0688d-4e24-48f0-93d2-02e59eacdc6e",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{ $json.respuestas[0].texto }}' | /home/ariel/piper-tts/venv310/bin/piper --model /home/ariel/piper-tts/es_AR-daniela-high.onnx --length-scale 1.3 --output-file /home/ariel/piper-tts/output.wav"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "c1a7d975-ee46-42f4-8c36-78f26a301702",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/ariel/piper-tts/output.wav",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "3039529a-7885-4d2e-9039-09cf76031988",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "4c3735d9-6bd0-4339-bc66-05b2f87a34e0",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Buscar qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar qdrant": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2e89df60-f36d-4717-8773-f04e10cf9401",
+  "meta": {
+    "instanceId": "71262f9f2070dbf3c0f764bef7d6866db477a80e9a5114826d073eabbe6828a3"
+  },
+  "id": "Fa8K1Nb6AKgAFqTh",
+  "tags": []
+}

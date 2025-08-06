@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Consulta Clínica con Voz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            color: #007bff;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩺 Consulta Clínica con Voz</h1>
+        
+        <form id="consultaForm">
+            <div class="form-group">
+                <label for="webhook-url">URL del Webhook n8n:</label>
+                <input type="text" id="webhook-url" placeholder="http://localhost:5678/webhook/consulta_audio" value="http://localhost:5678/webhook/consulta_audio">
+            </div>
+            
+            <div class="form-group">
+                <label for="pregunta">Pregunta médica:</label>
+                <textarea id="pregunta" placeholder="Ej: ¿Cuáles son los síntomas de la diabetes tipo 2?">¿Cuáles son los síntomas de la diabetes tipo 2?</textarea>
+            </div>
+            
+            <button type="submit" id="enviarBtn">🎤 Enviar Consulta</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('consultaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const webhookUrl = document.getElementById('webhook-url').value;
+            const pregunta = document.getElementById('pregunta').value;
+            const resultDiv = document.getElementById('result');
+            const enviarBtn = document.getElementById('enviarBtn');
+            
+            if (!pregunta.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Por favor, ingresa una pregunta.</div>';
+                return;
+            }
+            
+            // Mostrar loading
+            enviarBtn.disabled = true;
+            enviarBtn.textContent = '⏳ Procesando...';
+            resultDiv.innerHTML = '<div class="result loading">🔄 Generando embeddings, buscando respuesta y convirtiendo a audio...</div>';
+            
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        pregunta: pregunta
+                    })
+                });
+                
+                if (response.ok) {
+                    // Si la respuesta es un archivo de audio
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (contentType && contentType.includes('audio')) {
+                        const audioBlob = await response.blob();
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <h3>✅ ¡Respuesta generada exitosamente!</h3>
+                                <p><strong>Pregunta:</strong> ${pregunta}</p>
+                                <p><strong>Audio respuesta:</strong></p>
+                                <audio controls>
+                                    <source src="${audioUrl}" type="audio/wav">
+                                    Tu navegador no soporta el elemento de audio.
+                                </audio>
+                            </div>
+                        `;
+                    } else {
+                        // Si es una respuesta JSON
+                        const data = await response.json();
+                        resultDiv.innerHTML = `
+                            <div class="result success">
+                                <h3>✅ Respuesta recibida</h3>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ Error en la consulta</h3>
+                            <p><strong>Código:</strong> ${response.status}</p>
+                            <p><strong>Mensaje:</strong> ${errorText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error de conexión</h3>
+                        <p>${error.message}</p>
+                        <p>Verifica que n8n esté ejecutándose y el webhook esté activo.</p>
+                    </div>
+                `;
+            } finally {
+                enviarBtn.disabled = false;
+                enviarBtn.textContent = '🎤 Enviar Consulta';
+            }
+        });
+    </script>
+</body>
+</html>
